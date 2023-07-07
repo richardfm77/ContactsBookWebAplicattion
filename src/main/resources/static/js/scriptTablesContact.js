@@ -1,13 +1,120 @@
 window.addEventListener('DOMContentLoaded', event => {
-    loadContacts();
+    new Vue({
+        el: '#app',
+        vuetify: new Vuetify(),
+        data: () => ({
+            search: '',
+            dialog: false,
+            dialogDelete: false,
+            headers: [
+                {
+                    text: 'Name',
+                    align: 'start',
+                    sortable: true,
+                    value: 'name',
+                },
+                { text: 'Telephone', value: 'telephone' },
+                { text: 'Email', value: 'email' },
+                { text: 'Actions', value: 'actions', sortable: false },
+            ],
+            desserts: [],
+            editedIndex: -1,
+            editedItem: {
+                id: null,
+                name: '',
+                telephone: '',
+                email: ''
+            },
+            defaultItem: {
+                id: null,
+                name: '',
+                telephone: '',
+                email: ''
+            },
+        }),
+
+        computed: {
+            formTitle() {
+                return this.editedIndex === -1 ? 'New Contact' : 'Edit Contact';
+            },
+        },
+
+        watch: {
+            dialog(val) {
+                val || this.close()
+            },
+            dialogDelete(val) {
+                val || this.closeDelete()
+            },
+        },
+
+        created() {
+            this.initialize()
+        },
+
+        methods: {
+            initialize() {
+                getContacts().then(contacts => {
+                    this.desserts = contacts;
+                });
+            },
+
+            editItem(item) {
+                this.editedIndex = this.desserts.indexOf(item);
+                this.editedItem = Object.assign({}, item);
+                this.dialog = true;
+            },
+
+            deleteItem(item) {
+                this.editedIndex = this.desserts.indexOf(item);
+                this.editedItem = Object.assign({}, item);
+                this.dialogDelete = true;
+            },
+
+            deleteItemConfirm() {
+                this.desserts.splice(this.editedIndex, 1);
+                deleteContact(this.editedItem.id);
+                this.closeDelete();
+            },
+
+            close() {
+                this.dialog = false
+                this.$nextTick(() => {
+                    this.editedItem = Object.assign({}, this.defaultItem);
+                    this.editedIndex = -1;
+                })
+            },
+
+            closeDelete() {
+                this.dialogDelete = false
+                this.$nextTick(() => {
+                    this.editedItem = Object.assign({}, this.defaultItem);
+                    this.editedIndex = -1;
+                })
+            },
+
+            save() {
+                postContact(
+                    this.editedItem.id,
+                    this.editedItem.name,
+                    this.editedItem.telephone,
+                    this.editedItem.email
+                );
+
+                this.close();
+
+                location.reload();
+            },
+        },
+    })
 });
 
-function actualizarEmailDelUsuario() {
-    document.getElementById('txt-email-usuario').outerHTML = localStorage.email;
-}
+//-------------------------------
+/**
+ * Comunication with backend.
+ */
 
-
-async function loadContacts() {
+async function getContacts() {
     const request = await fetch('api/contacts', {
         method: 'GET',
         headers: getHeaders()
@@ -15,44 +122,7 @@ async function loadContacts() {
 
     const contacts = await request.json();
 
-
-    let listHtml = '';
-    for (let contact of contacts) {
-        let contactInnerHTM =
-            '<tr>' +
-            '<td>' + contact.name + '</td>' +
-            '<td>' + contact.telephone + ' </td>' +
-            '<td>' + contact.email + '</td>' +
-            '<td>' +
-            getBtnEdit() + getBtnDelete(contact.id) +
-            '</td>' +
-            '</tr>';
-        listHtml += contactInnerHTM;
-    }
-
-    document.querySelector('tbody').outerHTML = listHtml;
-}
-
-function getBtnEdit() {
-    let str =
-        '<i class = "my-icons-table i1"> Edit' +
-        '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">' +
-        '<path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>' +
-        '<path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/>' +
-        '</svg>' +
-        '</i>';
-    return str;
-}
-
-function getBtnDelete(id) {
-    let str =
-        '<i onclick="deleteContact(' + id + ')" class = "my-icons-table"> Delete' +
-        '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">' +
-        '<path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6Z"/>' +
-        '<path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1ZM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118ZM2.5 3h11V2h-11v1Z"/>' +
-        '</svg>' +
-        '</i>';
-    return str;
+    return contacts;
 }
 
 function getHeaders() {
@@ -63,15 +133,32 @@ function getHeaders() {
 }
 
 async function deleteContact(id) {
-
-    if (!confirm('Do you want to delete contact?')) {
-        return;
-    }
-
     const request = await fetch('api/contacts/' + id, {
         method: 'DELETE',
         headers: getHeaders()
     });
+}
 
-    location.reload()
+async function postContact(idValue, nameValue, telephoneValue, emailValue) {
+
+    let contact = {
+        id: idValue,
+        name: nameValue,
+        telephone: telephoneValue,
+        email: emailValue,
+    };
+
+    if (contact.name === "" || contact.telephone === "" || contact.email == "") {
+        alert("Please fill in all fields");
+        return;
+    }
+
+    const request = await fetch('api/contacts', {
+        method: 'POST',
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(contact)
+    });
 }
